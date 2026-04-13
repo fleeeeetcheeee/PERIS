@@ -34,11 +34,15 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+          // Exact match OR sub-route match (e.g. /sourcing/123)
+          const active =
+            pathname === href ||
+            (href !== "/" && pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}
               href={href}
+              prefetch={true}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 active
                   ? "bg-blue-600 text-white"

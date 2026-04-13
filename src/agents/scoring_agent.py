@@ -35,8 +35,23 @@ class ScoringAgent(BaseAgent):
 
     def __init__(self, llm: Any | None = None, thesis: str | None = None) -> None:
         super().__init__(llm=llm)
-        self.thesis = thesis or os.getenv("INVESTMENT_THESIS", DEFAULT_THESIS)
+        self.thesis = thesis or self._load_thesis()
         self._chain = self.build_chain()
+
+    @staticmethod
+    def _load_thesis() -> str:
+        """Load thesis from thesis.txt if present, else fall back to env/default."""
+        thesis_path = os.getenv("THESIS_PATH", "./thesis.txt")
+        try:
+            from pathlib import Path
+            p = Path(thesis_path)
+            if p.exists():
+                text = p.read_text(encoding="utf-8").strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        return os.getenv("INVESTMENT_THESIS", DEFAULT_THESIS)
 
     def build_chain(self) -> Any:
         # Chain is just the LLM; prompting handled in run()

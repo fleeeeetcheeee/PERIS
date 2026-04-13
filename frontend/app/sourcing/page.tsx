@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getCompanies, getSignals, type Company } from "../lib/api";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getCompanies, getSignals, getThesis, saveThesis, type Company } from "../lib/api";
 import ScoreBadge from "../components/ScoreBadge";
 import SignalTypeBadge from "../components/SignalTypeBadge";
-import { X, Search } from "lucide-react";
+import { X, Search, Save, Check } from "lucide-react";
 
 function SlideOver({
   company,
@@ -79,6 +79,54 @@ function SlideOver({
   );
 }
 
+function ThesisBox() {
+  const [text, setText] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const { data: existing } = useQuery({
+    queryKey: ["thesis"],
+    queryFn: getThesis,
+  });
+
+  useEffect(() => {
+    if (existing !== undefined) setText(existing);
+  }, [existing]);
+
+  const mutation = useMutation({
+    mutationFn: saveThesis,
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h2 className="text-sm font-semibold text-blue-900">Investment Thesis</h2>
+          <p className="text-xs text-blue-600 mt-0.5">Saved to thesis.txt — used by the scoring agent</p>
+        </div>
+        <button
+          onClick={() => mutation.mutate(text)}
+          disabled={mutation.isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          {saved ? <Check size={12} /> : <Save size={12} />}
+          {saved ? "Saved" : "Save Thesis"}
+        </button>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder="e.g. B2B SaaS, $5M–$50M revenue, US-based, growing >20% YoY, high gross margins"
+        className="w-full text-sm border border-blue-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+      />
+    </div>
+  );
+}
+
 export default function SourcingPage() {
   const [search, setSearch] = useState("");
   const [sectorFilter, setSectorFilter] = useState("all");
@@ -111,6 +159,8 @@ export default function SourcingPage() {
         <h1 className="text-2xl font-bold text-gray-900">Deal Sourcing</h1>
         <p className="text-sm text-gray-500 mt-1">{data?.count ?? 0} companies tracked</p>
       </div>
+
+      <ThesisBox />
 
       {/* Filters */}
       <div className="flex gap-3">

@@ -10,25 +10,30 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Link from "next/link";
 import { getCompanies, getSignals, getPipeline, getPortfolio } from "../lib/api";
 import SignalTypeBadge from "../components/SignalTypeBadge";
-import ScoreBadge from "../components/ScoreBadge";
 
 function MetricCard({
   label,
   value,
   sub,
+  href,
 }: {
   label: string;
   value: number | string;
   sub?: string;
+  href: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <Link
+      href={href}
+      className="bg-white rounded-xl border border-gray-200 p-6 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer block"
+    >
       <p className="text-sm text-gray-500 font-medium">{label}</p>
       <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
       {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
+    </Link>
   );
 }
 
@@ -82,10 +87,10 @@ export default function DashboardPage() {
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label="Companies Tracked" value={totalCompanies} sub="all sources" />
-        <MetricCard label="Pipeline Deals" value={pipelineDeals} sub="active stages" />
-        <MetricCard label="KPI Records" value={portfolioKpis} sub="portfolio metrics" />
-        <MetricCard label="Signals Today" value={signalsToday} sub={today} />
+        <MetricCard label="Companies Tracked" value={totalCompanies} sub="all sources" href="/sourcing" />
+        <MetricCard label="Pipeline Deals" value={pipelineDeals} sub="active stages" href="/pipeline" />
+        <MetricCard label="KPI Records" value={portfolioKpis} sub="portfolio metrics" href="/portfolio" />
+        <MetricCard label="Signals Today" value={signalsToday} sub={today} href="/signals" />
       </div>
 
       {/* Chart */}
