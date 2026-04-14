@@ -127,9 +127,24 @@ function ThesisBox() {
   );
 }
 
+function getAction(score: number | null): "pursue" | "watch" | "pass" | "unscored" {
+  if (score === null) return "unscored";
+  if (score >= 80) return "pursue";
+  if (score >= 60) return "watch";
+  return "pass";
+}
+
+const ACTION_ROW_CLASS: Record<string, string> = {
+  pursue: "bg-green-50 hover:bg-green-100",
+  watch: "bg-amber-50 hover:bg-amber-100",
+  pass: "bg-gray-50 hover:bg-gray-100",
+  unscored: "hover:bg-blue-50",
+};
+
 export default function SourcingPage() {
   const [search, setSearch] = useState("");
   const [sectorFilter, setSectorFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState("all");
   const [selected, setSelected] = useState<Company | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -149,9 +164,10 @@ export default function SourcingPage() {
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.sector ?? "").toLowerCase().includes(search.toLowerCase());
       const matchSector = sectorFilter === "all" || c.sector === sectorFilter;
-      return matchSearch && matchSector;
+      const matchAction = actionFilter === "all" || getAction(c.score) === actionFilter;
+      return matchSearch && matchSector && matchAction;
     });
-  }, [data, search, sectorFilter]);
+  }, [data, search, sectorFilter, actionFilter]);
 
   return (
     <div className="space-y-6">
@@ -185,6 +201,16 @@ export default function SourcingPage() {
             </option>
           ))}
         </select>
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">All Actions</option>
+          <option value="pursue">Pursue</option>
+          <option value="watch">Watch</option>
+          <option value="pass">Pass</option>
+        </select>
       </div>
 
       {/* Table */}
@@ -213,7 +239,7 @@ export default function SourcingPage() {
                 <tr
                   key={c.id}
                   onClick={() => setSelected(c)}
-                  className="hover:bg-blue-50 cursor-pointer transition-colors"
+                  className={`cursor-pointer transition-colors ${ACTION_ROW_CLASS[getAction(c.score)]}`}
                 >
                   <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
                   <td className="px-4 py-3 text-gray-500">{c.sector ?? "—"}</td>
