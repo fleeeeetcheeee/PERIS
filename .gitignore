@@ -70,3 +70,8 @@ node_modules/
 .next/
 frontend/.next/
 frontend/node_modules/
+
+# Electron runtime state
+.peris_last_run.json
+electron/node_modules/
+dist/
