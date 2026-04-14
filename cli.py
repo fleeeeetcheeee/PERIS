@@ -148,19 +148,17 @@ def score(company_id: int | None, score_all: bool) -> None:
 # ---------------------------------------------------------------------------
 
 @cli.command("report")
-@click.option("--output", default=None, help="Override output directory")
+@click.option("--output", default=None, help="Override output directory (default: ./reports)")
 def report(output: str | None) -> None:
     """Generate the weekly PDF intelligence report."""
     if output:
         os.environ["REPORTS_DIR"] = output
 
-    from src.db.schema import init_db
-    from src.reporting.reports import generate_weekly_report
+    from src.reporting.weekly_report import generate_weekly_report
 
-    init_db()
-    click.echo("Generating weekly report…")
+    click.echo("Generating weekly PDF report…")
     pdf_path = generate_weekly_report()
-    click.echo(f"Report written to: {pdf_path}")
+    click.echo(f"Report saved to: {pdf_path}")
 
 
 # ---------------------------------------------------------------------------
