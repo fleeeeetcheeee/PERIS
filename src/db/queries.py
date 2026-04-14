@@ -1,11 +1,24 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .schema import Company, PipelineStage, PortfolioKPI, Signal
+
+# Strips trailing ticker / CIK parentheticals from EDGAR display names
+# e.g. "QXO, Inc.  (QXO, QXO-PB)" → "QXO, Inc."
+_TICKER_SUFFIX_RE = re.compile(r"\s*\([A-Z0-9,\-\s]{1,30}\)\s*$")
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize a company name for deduplication comparison."""
+    normalized = _TICKER_SUFFIX_RE.sub("", name).strip()
+    # Also collapse extra whitespace and strip common legal suffixes variation
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.lower()
 
 
 def _apply_updates(instance: Any, updates: dict[str, Any]) -> None:
@@ -15,6 +28,27 @@ def _apply_updates(instance: Any, updates: dict[str, Any]) -> None:
 
 
 def create_company(session: Session, **company_data: Any) -> Company:
+    """Insert a company, returning the existing row if a same-name company already exists.
+
+    Deduplication checks both exact name (case-insensitive) and a normalized
+    form that strips trailing ticker/parenthetical suffixes from EDGAR names.
+    """
+    name = company_data.get("name", "")
+    if name:
+        # 1. Exact case-insensitive match
+        existing = session.scalars(
+            select(Company).where(Company.name.ilike(name)).limit(1)
+        ).first()
+        if existing is not None:
+            return existing
+        # 2. Normalized match — catches "QXO, Inc." vs "QXO, Inc.  (QXO, QXO-PB)"
+        normalized = _normalize_name(name)
+        all_candidates = session.scalars(
+            select(Company).where(Company.name.ilike(f"{normalized.split()[0]}%")).limit(50)
+        ).all()
+        for candidate in all_candidates:
+            if _normalize_name(candidate.name) == normalized:
+                return candidate
     company = Company(**company_data)
     session.add(company)
     session.commit()
