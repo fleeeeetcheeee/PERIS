@@ -65,6 +65,16 @@ def list_companies(
     return {"items": [_company_to_dict(c) for c in companies], "count": len(companies)}
 
 
+@router.get("/top")
+def get_top_companies(
+    limit: int = Query(20, ge=1, le=100),
+    min_score: float = Query(70.0, ge=0, le=100),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    companies = queries.get_top_companies(db, limit=limit, min_score=min_score)
+    return {"items": [_company_to_dict(c) for c in companies], "count": len(companies)}
+
+
 @router.get("/{company_id}")
 def get_company(company_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     company = queries.get_company(db, company_id)

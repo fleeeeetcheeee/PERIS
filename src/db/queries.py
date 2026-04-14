@@ -26,6 +26,20 @@ def get_company(session: Session, company_id: int) -> Company | None:
     return session.get(Company, company_id)
 
 
+def get_top_companies(
+    session: Session, limit: int = 20, min_score: float = 70.0
+) -> list[Company]:
+    """Return companies ordered by score descending, filtered by min_score."""
+    statement = (
+        select(Company)
+        .where(Company.score >= min_score)
+        .where(Company.name != "_MACRO_DATA_")
+        .order_by(Company.score.desc())
+        .limit(limit)
+    )
+    return list(session.scalars(statement))
+
+
 def list_companies(session: Session, limit: int | None = None, offset: int = 0) -> list[Company]:
     statement = select(Company).order_by(Company.created_at.desc(), Company.id.desc()).offset(offset)
     if limit is not None:
