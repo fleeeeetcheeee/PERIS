@@ -59,6 +59,13 @@ export interface ListResponse<T> {
 
 // ── Fetch functions ───────────────────────────────────────────────────────────
 
+export async function getTopCompanies(limit = 10, minScore = 60): Promise<ListResponse<Company>> {
+  const { data } = await api.get<ListResponse<Company>>("/companies/top", {
+    params: { limit, min_score: minScore },
+  });
+  return data;
+}
+
 export async function getCompanies(limit = 200): Promise<ListResponse<Company>> {
   const { data } = await api.get<ListResponse<Company>>("/companies/", { params: { limit } });
   return data;

@@ -1,0 +1,10 @@
+Investment thesis: B2B software and technology-enabled services companies.
+Target profile:
+- Revenue: $5M to $100M ARR
+- Growth: >15% year over year
+- Geography: United States, Canada
+- Sectors: SaaS, fintech, healthcare IT, enterprise software, data infrastructure
+- Business model: recurring revenue preferred, high gross margins (>60%)
+- Stage: growth equity or buyout
+- Avoid: consumer, hardware, early stage pre-revenue, highly regulated industries
+EOF

@@ -11,8 +11,16 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
-import { getCompanies, getSignals, getPipeline, getPortfolio } from "../lib/api";
+import { getCompanies, getSignals, getPipeline, getPortfolio, getTopCompanies } from "../lib/api";
 import SignalTypeBadge from "../components/SignalTypeBadge";
+import ScoreBadge from "../components/ScoreBadge";
+
+function actionLabel(score: number | null): { label: string; cls: string } {
+  if (score === null) return { label: "unscored", cls: "bg-gray-100 text-gray-500" };
+  if (score >= 80) return { label: "pursue", cls: "bg-green-100 text-green-700" };
+  if (score >= 60) return { label: "watch", cls: "bg-amber-100 text-amber-700" };
+  return { label: "pass", cls: "bg-red-100 text-red-600" };
+}
 
 function MetricCard({
   label,
@@ -53,6 +61,10 @@ export default function DashboardPage() {
   const { data: portfolio } = useQuery({
     queryKey: ["portfolio"],
     queryFn: () => getPortfolio(),
+  });
+  const { data: topProspects } = useQuery({
+    queryKey: ["top-prospects"],
+    queryFn: () => getTopCompanies(10, 60),
   });
 
   const totalCompanies = companies?.count ?? 0;
@@ -114,6 +126,40 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         ) : (
           <p className="text-sm text-gray-400 py-10 text-center">No scored companies yet</p>
+        )}
+      </div>
+
+      {/* Top Prospects */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-800">Top Prospects</h2>
+          <Link href="/sourcing" className="text-xs text-blue-600 hover:underline">View all</Link>
+        </div>
+        {!topProspects || topProspects.count === 0 ? (
+          <p className="text-sm text-gray-400">No scored companies yet — run ingestion first</p>
+        ) : (
+          <ol className="divide-y divide-gray-50">
+            {topProspects.items.slice(0, 10).map((c, i) => {
+              const action = actionLabel(c.score);
+              return (
+                <li key={c.id} className="py-3 flex items-center gap-3">
+                  <span className="text-sm font-bold text-gray-300 w-5 text-right shrink-0">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                    {c.sector && (
+                      <p className="text-xs text-gray-400">{c.sector}</p>
+                    )}
+                  </div>
+                  <ScoreBadge score={c.score} />
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${action.cls}`}>
+                    {action.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
         )}
       </div>
 
