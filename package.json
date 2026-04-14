@@ -2,16 +2,17 @@
   "name": "peris",
   "version": "0.1.0",
   "description": "Private Equity Research Intelligence System",
+  "main": "electron/main.js",
   "private": true,
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names \"NEXT,ELECTRON\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:electron\"",
-    "dev:frontend": "npm --prefix frontend run dev",
-    "dev:electron": "wait-on http://localhost:3000 && npm --prefix electron start",
-    "build": "npm --prefix frontend run build && npm --prefix electron run build",
-    "start": "npm --prefix electron start"
+    "dev": "concurrently \"venv/bin/uvicorn src.api.main:app --reload --reload-dir src --port 8000\" \"npm --prefix frontend run dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
+    "build": "npm --prefix frontend run build && electron-builder --config electron-builder.config.js",
+    "start": "electron electron/main.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
     "wait-on": "^9.0.5"
   }
 }
