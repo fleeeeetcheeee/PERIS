@@ -36,6 +36,9 @@ SEARCH_QUERIES = [
     ("SaaS revenue", "10-K"),
     ("acquisition", "8-K"),
     ("merger agreement", "8-K"),
+    ("SaaS recurring revenue", "10-K"),
+    ("enterprise software", "10-K"),
+    ("B2B technology", "10-K"),
 ]
 
 
@@ -99,3 +102,13 @@ def ingest_sec_edgar() -> None:
     count = asyncio.run(_run_ingestion())
     logger.info("SEC EDGAR ingestion complete: %d new companies", count)
     print(f"[sec_edgar] Ingested {count} new companies")
+
+    # Auto-score any newly ingested companies
+    if count > 0:
+        try:
+            from src.scoring.pipeline import score_new_companies
+            print(f"[sec_edgar] Auto-scoring {count} new companies…")
+            score_new_companies()
+            print("[sec_edgar] Auto-scoring complete")
+        except Exception as exc:
+            logger.warning("Auto-scoring after ingestion failed: %s", exc)
