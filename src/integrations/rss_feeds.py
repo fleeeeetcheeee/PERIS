@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,11 +10,19 @@ import httpx
 
 from .base import BaseIntegration
 
-# Default feeds tracked by PERIS
+logger = logging.getLogger(__name__)
+
+# Default feeds tracked by PERIS (verified working as of 2026-04)
 DEFAULT_FEEDS = {
-    "reuters_ma": "https://feeds.reuters.com/reuters/mergersNews",
     "sec_8k": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom",
-    "reuters_business": "https://feeds.reuters.com/reuters/businessNews",
+    "sec_10k": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&dateb=&owner=include&count=40&search_text=&output=atom",
+    "pehub": "https://www.pehub.com/feed/",
+    "pr_newswire": "https://www.prnewswire.com/rss/news-releases-list.rss",
+}
+
+# Per-domain User-Agent overrides — SEC requires their preferred UA string
+_UA_MAP = {
+    "sec.gov": "PERIS Research Tool research@peris.local",
 }
 
 
@@ -30,20 +39,47 @@ class RSSFeedsIntegration(BaseIntegration):
     # Core fetch methods
     # ------------------------------------------------------------------
 
+    def _user_agent_for(self, url: str) -> str:
+        """Return the appropriate User-Agent for a given feed URL."""
+        for domain, ua in _UA_MAP.items():
+            if domain in url:
+                return ua
+        return "Mozilla/5.0 (compatible; PERIS/1.0; +https://peris.local)"
+
     async def fetch_feed(self, feed_url: str) -> list[dict[str, Any]]:
-        """Fetch and parse a single RSS/Atom feed URL."""
-        loop = asyncio.get_event_loop()
-        parsed = await loop.run_in_executor(None, feedparser.parse, feed_url)
-        return [self._entry_to_dict(entry, feed_url) for entry in parsed.entries]
+        """Fetch and parse a single RSS/Atom feed URL.
+
+        Uses httpx with a domain-appropriate User-Agent so feeds that block
+        feedparser's default UA (e.g. SEC EDGAR) are handled correctly.
+        Logs a warning and returns [] on any network or parse error.
+        """
+        try:
+            headers = {
+                "User-Agent": self._user_agent_for(feed_url),
+                "Accept": "application/rss+xml,application/atom+xml,application/xml,text/xml,*/*",
+            }
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(
+                None,
+                lambda: httpx.get(feed_url, headers=headers, timeout=15, follow_redirects=True),
+            )
+            if resp.status_code != 200:
+                logger.warning("RSS feed %s returned HTTP %d — skipping", feed_url, resp.status_code)
+                return []
+            parsed = feedparser.parse(resp.text)
+            if not parsed.entries:
+                logger.warning("RSS feed %s returned 0 entries (bozo=%s)", feed_url, parsed.bozo)
+            return [self._entry_to_dict(entry, feed_url) for entry in parsed.entries]
+        except Exception as exc:
+            logger.warning("RSS feed %s failed: %s", feed_url, exc)
+            return []
 
     async def fetch_all(self, feed_urls: list[str]) -> list[dict[str, Any]]:
         """Fetch multiple feeds concurrently and return a flat list of items."""
         tasks = [self.fetch_feed(url) for url in feed_urls]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks)
         items: list[dict[str, Any]] = []
         for result in results:
-            if isinstance(result, Exception):
-                continue
             items.extend(result)
         return items
 

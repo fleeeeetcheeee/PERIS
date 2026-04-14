@@ -16,7 +16,6 @@ class SecEdgarIntegration(BaseIntegration):
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
         super().__init__(api_key=api_key, base_url=base_url or self.BASE_URL)
-        # SEC requires a descriptive User-Agent per their fair-access policy
         self._headers = {
             "User-Agent": "PERIS Research Tool contact@peris.local",
             "Accept": "application/json",
@@ -24,8 +23,7 @@ class SecEdgarIntegration(BaseIntegration):
 
     @property
     def rate_limit_delay(self) -> float:
-        # SEC requests ≤10 req/s; 0.15 s gives comfortable headroom
-        return 0.15
+        return 0.2
 
     def parse(self, response: httpx.Response) -> Any:
         return response.json()
@@ -41,21 +39,26 @@ class SecEdgarIntegration(BaseIntegration):
         date_range: tuple[str, str] | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        """Search EDGAR full-text index. Returns list of filing dicts."""
-        params: dict[str, Any] = {
-            "q": f'"{query}"',
-            "_source": "file_date,entity_name,file_num,form_type,period_of_report",
-            "dateRange": "custom",
-            "startdt": date_range[0] if date_range else "2020-01-01",
-            "enddt": date_range[1] if date_range else "2099-12-31",
-            "hits.hits.total.value": limit,
-        }
-        if form_type:
-            params["forms"] = form_type
+        """
+        Search EDGAR full-text index.
 
-        url = f"{self.EFTS_URL}/LATEST/search-index"
+        IMPORTANT: httpx params-encoding double-encodes quotes, causing 500s.
+        Build the URL manually so %22 stays as %22.
+        """
+        # Encode the query term — wrap in quotes for phrase search
+        q_encoded = f"%22{httpx.QueryParams({'q': query})['q']}%22"
+
+        parts = [f"q={q_encoded}"]
+        if form_type:
+            parts.append(f"forms={form_type}")
+        parts.append("dateRange=custom")
+        parts.append(f"startdt={date_range[0] if date_range else '2022-01-01'}")
+        parts.append(f"enddt={date_range[1] if date_range else '2099-12-31'}")
+
+        url = f"{self.EFTS_URL}/LATEST/search-index?{'&'.join(parts)}"
+
         async with httpx.AsyncClient(headers=self._headers, timeout=30) as client:
-            resp = await client.get(url, params=params)
+            resp = await client.get(url)
             resp.raise_for_status()
             data = resp.json()
 
@@ -63,13 +66,54 @@ class SecEdgarIntegration(BaseIntegration):
         return [self._parse_filing_hit(h) for h in hits[:limit]]
 
     def _parse_filing_hit(self, hit: dict[str, Any]) -> dict[str, Any]:
+        """
+        Parse a hit from the EFTS response.
+
+        Real response fields (confirmed 2024):
+          _source.display_names  -> ["PROGRESS SOFTWARE CORP /MA  (PRGS)  (CIK 0000876167)"]
+          _source.ciks           -> ["0000876167"]
+          _source.form           -> "10-K"
+          _source.file_date      -> "2024-01-26"
+          _source.adsh           -> "0000876167-24-000031"
+          _source.sics           -> ["7372"]
+          _source.biz_locations  -> ["Burlington, MA"]
+        """
         src = hit.get("_source", {})
+
+        # Extract entity name from display_names
+        display_names = src.get("display_names", [])
+        entity_name = ""
+        ticker = None
+        if display_names:
+            raw = display_names[0]
+            # Format: "COMPANY NAME  (TICKER)  (CIK 0000...)"
+            # Strip CIK part and ticker
+            name_part = re.sub(r"\s*\(CIK\s+\d+\)\s*$", "", raw).strip()
+            ticker_match = re.search(r"\(([A-Z]{1,5})\)\s*$", name_part)
+            if ticker_match:
+                ticker = ticker_match.group(1)
+                entity_name = name_part[: ticker_match.start()].strip()
+            else:
+                entity_name = name_part
+
+        ciks = src.get("ciks", [])
+        cik = ciks[0].lstrip("0") if ciks else ""
+
+        sics = src.get("sics", [])
+        sic = sics[0] if sics else None
+
+        locations = src.get("biz_locations", [])
+        location = locations[0] if locations else None
+
         return {
-            "entity_name": src.get("entity_name", ""),
-            "form_type": src.get("form_type", ""),
+            "entity_name": entity_name,
+            "ticker": ticker,
+            "cik": cik,
+            "form_type": src.get("form", src.get("root_forms", [""])[0] if src.get("root_forms") else ""),
             "file_date": src.get("file_date", ""),
-            "period_of_report": src.get("period_of_report", ""),
-            "accession_number": hit.get("_id", ""),
+            "accession_number": src.get("adsh", hit.get("_id", "")),
+            "sic": sic,
+            "location": location,
         }
 
     # ------------------------------------------------------------------
@@ -113,10 +157,6 @@ class SecEdgarIntegration(BaseIntegration):
 
         return filings
 
-    # ------------------------------------------------------------------
-    # Company facts (XBRL inline data)
-    # ------------------------------------------------------------------
-
     async def get_company_facts(self, cik: str) -> dict[str, Any]:
         """Fetch XBRL company facts for a CIK."""
         cik_padded = str(cik).zfill(10)
@@ -125,10 +165,6 @@ class SecEdgarIntegration(BaseIntegration):
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.json()
-
-    # ------------------------------------------------------------------
-    # Convenience: parse filing into companies-table dict
-    # ------------------------------------------------------------------
 
     async def filing_to_company_dict(self, cik: str) -> dict[str, Any]:
         """Build a dict suitable for inserting into the companies table."""
