@@ -173,8 +173,8 @@ export default function DashboardPage() {
             {recentSignals.map((s) => (
               <div key={s.id} className="py-3 flex items-start gap-3">
                 <SignalTypeBadge type={s.signal_type} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 truncate">{s.summary}</p>
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="text-sm text-gray-800 truncate" title={s.summary}>{s.summary}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{s.created_at.slice(0, 16).replace("T", " ")}</p>
                 </div>
                 {s.confidence !== null && (

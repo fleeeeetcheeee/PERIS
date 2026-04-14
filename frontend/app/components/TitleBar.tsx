@@ -30,12 +30,19 @@ export default function TitleBar() {
 
   return (
     <div
-      className="flex items-center justify-between bg-gray-900 border-b border-gray-800 select-none"
-      style={{ height: 36, WebkitAppRegion: "drag" } as React.CSSProperties}
+      className="grid bg-gray-900 border-b border-gray-800 select-none"
+      style={{
+        height: 36,
+        gridTemplateColumns: "1fr auto 1fr",
+        WebkitAppRegion: "drag",
+      } as React.CSSProperties}
     >
-      {/* Left: app identity */}
-      <div className="flex items-center gap-2 px-4">
-        <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xs">
+      {/* Left: spacer for macOS traffic lights — must be ≥ 70px */}
+      <div className="min-w-[80px]" />
+
+      {/* Centre: app identity */}
+      <div className="flex items-center gap-2">
+        <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xs shrink-0">
           P
         </div>
         <span className="text-xs font-semibold text-gray-300 tracking-widest uppercase">
@@ -45,7 +52,7 @@ export default function TitleBar() {
 
       {/* Right: window controls — no-drag zone */}
       <div
-        className="flex items-center"
+        className="flex items-center justify-end"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <button

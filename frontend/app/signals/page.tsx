@@ -39,7 +39,7 @@ function SignalRow({
               {signal.created_at.slice(0, 16).replace("T", " ")}
             </span>
           </div>
-          <p className="text-sm text-gray-700">{signal.summary}</p>
+          <p className="text-sm text-gray-700 break-words">{signal.summary}</p>
         </div>
 
         {signal.confidence !== null && (

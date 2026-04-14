@@ -68,7 +68,7 @@ function SlideOver({
                     <SignalTypeBadge type={s.signal_type} />
                     <span className="text-xs text-gray-400">{s.created_at.slice(0, 10)}</span>
                   </div>
-                  <p className="text-xs text-gray-700">{s.summary}</p>
+                  <p className="text-xs text-gray-700 break-words">{s.summary}</p>
                 </div>
               ))}
             </div>
@@ -241,9 +241,9 @@ export default function SourcingPage() {
                   onClick={() => setSelected(c)}
                   className={`cursor-pointer transition-colors ${ACTION_ROW_CLASS[getAction(c.score)]}`}
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{c.sector ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{c.country ?? "—"}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{c.name}</td>
+                  <td className="px-4 py-3 text-gray-500 max-w-[140px] truncate">{c.sector ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-500 max-w-[100px] truncate">{c.country ?? "—"}</td>
                   <td className="px-4 py-3">
                     <ScoreBadge score={c.score} />
                   </td>

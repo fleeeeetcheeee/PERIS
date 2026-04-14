@@ -64,6 +64,7 @@ function createMainWindow() {
     height: Math.min(900, height),
     frame: false,
     titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 16, y: 11 },
     vibrancy: 'dark',
     backgroundColor: '#0f0f1a',
     show: false,
