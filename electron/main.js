@@ -5,6 +5,10 @@ const {
   BrowserWindow,
   ipcMain,
   screen,
+  Tray,
+  Menu,
+  nativeImage,
+  shell,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -30,9 +34,10 @@ const IS_DEV = !app.isPackaged;
 // Track child processes for clean shutdown
 const children = [];
 
-// ── Window handles ────────────────────────────────────────────────────────────
+// ── Window / tray handles ─────────────────────────────────────────────────────
 let splashWin = null;
 let mainWin   = null;
+let tray      = null;  // kept in module scope so it is never GC'd
 
 // ── Splash window ─────────────────────────────────────────────────────────────
 function createSplash() {
@@ -193,9 +198,102 @@ function waitForURL(url, timeoutMs = 60000) {
   });
 }
 
+// ── Tray helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Run a CLI command in the background using execFile (no shell — injection-safe).
+ * Logs stdout/stderr to console; errors are caught and logged, not thrown.
+ */
+function runCliBackground(args, label) {
+  const python = fs.existsSync(path.join(VENV_BIN, 'python'))
+    ? path.join(VENV_BIN, 'python')
+    : 'python3';
+  console.log(`[tray] running: ${label}`);
+  execFile(python, ['cli.py', ...args], { cwd: ROOT }, (err, stdout, stderr) => {
+    if (stdout) process.stdout.write(`[${label}] ${stdout}`);
+    if (stderr) process.stderr.write(`[${label}] ${stderr}`);
+    if (err)    console.warn(`[${label}] exited with error:`, err.message);
+    else        console.log(`[${label}] done`);
+  });
+}
+
+/** Open the most-recently-modified PDF in reports/ with the system viewer. */
+function openLastReport() {
+  const reportsDir = path.join(ROOT, 'reports');
+  if (!fs.existsSync(reportsDir)) {
+    console.warn('[tray] reports/ directory not found');
+    return;
+  }
+  const pdfs = fs.readdirSync(reportsDir)
+    .filter((f) => f.endsWith('.pdf'))
+    .map((f) => ({ f, mtime: fs.statSync(path.join(reportsDir, f)).mtime }))
+    .sort((a, b) => b.mtime - a.mtime);
+  if (pdfs.length === 0) {
+    console.warn('[tray] no reports found — run "Generate Report" first');
+    return;
+  }
+  shell.openPath(path.join(reportsDir, pdfs[0].f));
+}
+
+/** Show and focus the main dashboard window (create it if needed). */
+function openDashboard() {
+  if (mainWin) {
+    if (mainWin.isMinimized()) mainWin.restore();
+    mainWin.show();
+    mainWin.focus();
+  } else {
+    createMainWindow();
+  }
+}
+
+function createTray() {
+  // Use the app icon resized to 16×16 as a menu-bar template image.
+  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+  const img = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  img.setTemplateImage(true); // auto dark/light mode on macOS
+
+  tray = new Tray(img);
+  tray.setToolTip('PERIS — PE Intelligence');
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'Open Dashboard',
+      click: openDashboard,
+    },
+    { type: 'separator' },
+    {
+      label: 'Run Ingest Now',
+      click: () => runCliBackground(['ingest', 'sec'], 'ingest'),
+    },
+    {
+      label: 'Run Scorer Now',
+      click: () => runCliBackground(['score', '--all'], 'scorer'),
+    },
+    {
+      label: 'View Last Report',
+      click: openLastReport,
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit PERIS',
+      click: () => app.quit(),
+    },
+  ]);
+
+  tray.setContextMenu(menu);
+
+  // Left-click on macOS also opens the dashboard
+  tray.on('click', openDashboard);
+}
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  // Register as a login item so PERIS launches on Mac startup.
+  // openAsHidden keeps it out of the way until the user opens the dashboard.
+  app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+
+  createTray();
   createSplash();
 
   // Give the splash a moment to paint
@@ -263,6 +361,8 @@ app.on('will-quit', () => {
 });
 
 app.on('window-all-closed', () => {
+  // On macOS keep the process alive so the tray icon remains in the menu bar.
+  // On other platforms quit as normal.
   if (process.platform !== 'darwin') app.quit();
 });
 
