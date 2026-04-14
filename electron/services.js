@@ -5,7 +5,7 @@
  * daily first-launch jobs, and status event emission.
  */
 
-const { execFile, execFileSync } = require('child_process');
+const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -46,16 +46,16 @@ function checkVenv() {
 }
 
 /**
- * Check whether Ollama is installed on the system PATH.
- * Uses execFileSync with a fixed binary path — no shell injection possible.
+ * Check whether Ollama is installed by probing known install locations.
+ * Avoids relying on PATH (which is truncated inside Electron's child_process).
  */
 function checkOllama() {
-  try {
-    execFileSync('/usr/bin/which', ['ollama'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+  const candidates = [
+    '/usr/local/bin/ollama',
+    '/opt/homebrew/bin/ollama',
+    '/usr/bin/ollama',
+  ];
+  return candidates.some((p) => fs.existsSync(p));
 }
 
 /**

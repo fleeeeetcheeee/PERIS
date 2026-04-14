@@ -23,6 +23,10 @@ const FRONTEND_PORT   = 3000;
 const BACKEND_URL     = `http://localhost:${BACKEND_PORT}`;
 const FRONTEND_URL    = `http://localhost:${FRONTEND_PORT}`;
 
+// Detect whether we're running via `npm run dev` (concurrently already starts
+// the backend and frontend) or as a packaged production app.
+const IS_DEV = !app.isPackaged;
+
 // Track child processes for clean shutdown
 const children = [];
 
@@ -126,10 +130,24 @@ function spawnFrontend() {
   return proc;
 }
 
+/** Resolve the full path to the ollama binary, or null if not found. */
+function findOllama() {
+  const candidates = [
+    '/usr/local/bin/ollama',
+    '/opt/homebrew/bin/ollama',
+    '/usr/bin/ollama',
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 /** Spawn Ollama serve if ollama is installed and not already listening. */
 function spawnOllamaIfNeeded() {
-  if (!checkOllama()) {
-    console.log('[ollama] not installed — skipping');
+  const ollamaPath = findOllama();
+  if (!ollamaPath) {
+    console.log('[ollama] not found — skipping (scoring will use rule-based fallback)');
     return;
   }
   // Quick check: can we connect to ollama's default port (11434)?
@@ -138,10 +156,14 @@ function spawnOllamaIfNeeded() {
   sock.on('connect', () => { sock.destroy(); console.log('[ollama] already running'); });
   sock.on('error', () => {
     sock.destroy();
-    console.log('[ollama] starting ollama serve...');
-    const proc = spawn('ollama', ['serve'], { stdio: 'ignore', detached: false });
-    proc.on('close', (code) => console.log('[ollama] exited with code', code));
-    children.push(proc);
+    console.log('[ollama] starting ollama serve from', ollamaPath);
+    try {
+      const proc = spawn(ollamaPath, ['serve'], { stdio: 'ignore', detached: false });
+      proc.on('close', (code) => console.log('[ollama] exited with code', code));
+      children.push(proc);
+    } catch (err) {
+      console.warn('[ollama] failed to start — continuing without it:', err.message);
+    }
   });
 }
 
@@ -190,26 +212,37 @@ app.whenReady().then(async () => {
   sendStatus(1, 'Loading models...');
   spawnOllamaIfNeeded();
 
-  sendStatus(2, 'Starting API server...');
-  spawnBackend();
-  spawnFrontend();
+  if (IS_DEV) {
+    // Dev mode: concurrently already started the backend and frontend.
+    // Just wait for both to be reachable.
+    sendStatus(2, 'Waiting for API server...');
+    try {
+      await waitForURL(BACKEND_URL + '/health', 90000);
+      console.log('[main] backend ready');
+    } catch (err) {
+      console.warn('[main] backend health check timed out:', err.message);
+    }
 
-  // Wait for backend
-  try {
-    await waitForURL(BACKEND_URL + '/health', 90000);
-    console.log('[main] backend ready');
-  } catch (err) {
-    console.warn('[main] backend health check timed out:', err.message);
-  }
+    sendStatus(3, 'Waiting for dashboard...');
+    try {
+      await waitForURL(FRONTEND_URL, 90000);
+      console.log('[main] frontend ready');
+    } catch (err) {
+      console.warn('[main] frontend health check timed out:', err.message);
+    }
+  } else {
+    // Production mode: spawn backend; frontend is served as static files.
+    sendStatus(2, 'Starting API server...');
+    spawnBackend();
 
-  sendStatus(3, 'Launching dashboard...');
+    try {
+      await waitForURL(BACKEND_URL + '/health', 90000);
+      console.log('[main] backend ready');
+    } catch (err) {
+      console.warn('[main] backend health check timed out:', err.message);
+    }
 
-  // Wait for Next.js
-  try {
-    await waitForURL(FRONTEND_URL, 90000);
-    console.log('[main] frontend ready');
-  } catch (err) {
-    console.warn('[main] frontend health check timed out:', err.message);
+    sendStatus(3, 'Launching dashboard...');
   }
 
   sendStatus(4, 'Ready.');

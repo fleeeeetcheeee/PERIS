@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"venv/bin/uvicorn src.api.main:app --reload --reload-dir src --port 8000\" \"npm --prefix frontend run dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
+    "dev": "concurrently \"venv/bin/uvicorn src.api.main:app --reload --reload-dir src --port 8000\" \"npm --prefix frontend run dev\" \"wait-on http-get://localhost:8000/health http-get://localhost:3000 && electron electron/main.js\"",
     "build": "npm --prefix frontend run build && electron-builder --config electron-builder.config.js",
     "start": "electron electron/main.js"
   },
