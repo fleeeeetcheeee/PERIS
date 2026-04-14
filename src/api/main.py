@@ -34,3 +34,8 @@ app.include_router(ingest_router, prefix="/ingest", tags=["ingest"])
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"status": "ok", "service": "peris-api"}
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}

@@ -1,0 +1,17 @@
+{
+  "name": "peris",
+  "version": "0.1.0",
+  "description": "Private Equity Research Intelligence System",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"NEXT,ELECTRON\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:electron": "wait-on http://localhost:3000 && npm --prefix electron start",
+    "build": "npm --prefix frontend run build && npm --prefix electron run build",
+    "start": "npm --prefix electron start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "wait-on": "^9.0.5"
+  }
+}

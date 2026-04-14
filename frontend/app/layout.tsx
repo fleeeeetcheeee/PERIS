@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import TitleBar from "./components/TitleBar";
 import Providers from "./lib/providers";
 
 export const metadata: Metadata = {
@@ -14,11 +15,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-gray-50 text-gray-900 antialiased">
         <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-y-auto p-8">{children}</main>
+          <div className="flex flex-col h-screen overflow-hidden">
+            <TitleBar />
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <Header />
+                <main className="flex-1 overflow-y-auto p-8">{children}</main>
+              </div>
             </div>
           </div>
         </Providers>
