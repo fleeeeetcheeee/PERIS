@@ -67,12 +67,14 @@ export default function PortfolioPage() {
 
             return (
               <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <p className="font-semibold text-gray-900 truncate">{c.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{c.sector ?? "Unknown sector"}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{c.sector ?? "Unknown sector"}</p>
                   </div>
-                  <StatusBadge status={status} />
+                  <div className="shrink-0">
+                    <StatusBadge status={status} />
+                  </div>
                 </div>
 
                 {/* Score */}
