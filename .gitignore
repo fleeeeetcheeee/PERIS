@@ -75,3 +75,6 @@ frontend/node_modules/
 .peris_last_run.json
 electron/node_modules/
 dist/
+
+# Local research notes (not tracked)
+Research/

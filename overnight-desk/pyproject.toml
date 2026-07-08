@@ -1,0 +1,55 @@
+[project]
+name = "overnight-desk"
+version = "0.1.0"
+description = "Daily cross-sectional signal engine for US large-cap stocks and ETFs. Research + decision support only — no trade execution."
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "pyarrow>=16.0",
+    "duckdb>=1.0",
+    "lightgbm>=4.3",
+    "scipy>=1.13",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "httpx>=0.27",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "exchange-calendars>=4.5",
+    "yfinance>=1.5.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "core",
+    "ingestion",
+    "features",
+    "models",
+    "portfolio",
+    "backtest",
+    "briefing",
+    "llm",
+    "api",
+    "jobs",
+    "ledger",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

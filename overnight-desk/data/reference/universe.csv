@@ -1,0 +1,72 @@
+ticker,name,asset_type,sector
+AAPL,Apple Inc.,stock,Information Technology
+MSFT,Microsoft Corp.,stock,Information Technology
+NVDA,NVIDIA Corp.,stock,Information Technology
+AMZN,Amazon.com Inc.,stock,Consumer Discretionary
+GOOGL,Alphabet Inc. Class A,stock,Communication Services
+META,Meta Platforms Inc.,stock,Communication Services
+JPM,JPMorgan Chase & Co.,stock,Financials
+BAC,Bank of America Corp.,stock,Financials
+WFC,Wells Fargo & Co.,stock,Financials
+GS,Goldman Sachs Group Inc.,stock,Financials
+V,Visa Inc.,stock,Financials
+MA,Mastercard Inc.,stock,Financials
+XOM,Exxon Mobil Corp.,stock,Energy
+CVX,Chevron Corp.,stock,Energy
+COP,ConocoPhillips,stock,Energy
+JNJ,Johnson & Johnson,stock,Health Care
+PFE,Pfizer Inc.,stock,Health Care
+MRK,Merck & Co. Inc.,stock,Health Care
+UNH,UnitedHealth Group Inc.,stock,Health Care
+LLY,Eli Lilly & Co.,stock,Health Care
+ABBV,AbbVie Inc.,stock,Health Care
+TMO,Thermo Fisher Scientific,stock,Health Care
+ABT,Abbott Laboratories,stock,Health Care
+AMGN,Amgen Inc.,stock,Health Care
+PG,Procter & Gamble Co.,stock,Consumer Staples
+KO,Coca-Cola Co.,stock,Consumer Staples
+PEP,PepsiCo Inc.,stock,Consumer Staples
+WMT,Walmart Inc.,stock,Consumer Staples
+COST,Costco Wholesale Corp.,stock,Consumer Staples
+HD,Home Depot Inc.,stock,Consumer Discretionary
+MCD,McDonald's Corp.,stock,Consumer Discretionary
+NKE,Nike Inc.,stock,Consumer Discretionary
+SBUX,Starbucks Corp.,stock,Consumer Discretionary
+LOW,Lowe's Companies Inc.,stock,Consumer Discretionary
+DIS,Walt Disney Co.,stock,Communication Services
+NFLX,Netflix Inc.,stock,Communication Services
+T,AT&T Inc.,stock,Communication Services
+VZ,Verizon Communications,stock,Communication Services
+CSCO,Cisco Systems Inc.,stock,Information Technology
+ORCL,Oracle Corp.,stock,Information Technology
+IBM,International Business Machines,stock,Information Technology
+INTC,Intel Corp.,stock,Information Technology
+AMD,Advanced Micro Devices,stock,Information Technology
+TXN,Texas Instruments Inc.,stock,Information Technology
+QCOM,Qualcomm Inc.,stock,Information Technology
+CRM,Salesforce Inc.,stock,Information Technology
+ADBE,Adobe Inc.,stock,Information Technology
+CAT,Caterpillar Inc.,stock,Industrials
+DE,Deere & Co.,stock,Industrials
+BA,Boeing Co.,stock,Industrials
+GE,GE Aerospace,stock,Industrials
+HON,Honeywell International,stock,Industrials
+UPS,United Parcel Service,stock,Industrials
+LMT,Lockheed Martin Corp.,stock,Industrials
+RTX,RTX Corp.,stock,Industrials
+UNP,Union Pacific Corp.,stock,Industrials
+SPY,SPDR S&P 500 ETF,etf,Broad Market
+QQQ,Invesco QQQ Trust,etf,Broad Market
+IWM,iShares Russell 2000 ETF,etf,Broad Market
+DIA,SPDR Dow Jones Industrial ETF,etf,Broad Market
+XLK,Technology Select Sector SPDR,etf,Sector
+XLF,Financial Select Sector SPDR,etf,Sector
+XLE,Energy Select Sector SPDR,etf,Sector
+XLV,Health Care Select Sector SPDR,etf,Sector
+XLY,Consumer Discretionary SPDR,etf,Sector
+XLP,Consumer Staples Select SPDR,etf,Sector
+XLI,Industrial Select Sector SPDR,etf,Sector
+XLU,Utilities Select Sector SPDR,etf,Sector
+XLB,Materials Select Sector SPDR,etf,Sector
+GLD,SPDR Gold Shares,etf,Commodity
+TLT,iShares 20+ Year Treasury ETF,etf,Fixed Income

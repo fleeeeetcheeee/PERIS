@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingAgents Desk</title>
+<style>
+  :root {
+    --bg: #0b0e1a; --panel: #131729; --line: #232945; --text: #d8dced;
+    --dim: #7a82a6; --buy: #2dc653; --sell: #e5383b; --hold: #8d99ae; --gold: #ffd166;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Menlo", "Courier New", monospace;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+  header {
+    padding: 10px 16px; border-bottom: 2px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px;
+  }
+  header h1 { font-size: 15px; letter-spacing: 3px; color: var(--gold); }
+  header #worker { font-size: 11px; color: var(--dim); }
+  header #conn { margin-left: auto; font-size: 11px; }
+  main { display: flex; flex: 1; min-height: 0; }
+  #floorwrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px; min-width: 0; }
+  canvas {
+    image-rendering: pixelated;
+    width: min(100%, 168vh); height: auto; max-height: 100%;
+  }
+  aside {
+    width: 340px; border-left: 2px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  aside h2 { font-size: 10px; letter-spacing: 2px; color: var(--dim); padding: 8px 12px 4px; }
+  #board { padding: 0 12px; }
+  .brow {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin-bottom: 4px;
+    background: var(--bg); border: 1px solid var(--line); font-size: 12px;
+  }
+  .brow .tkr { width: 52px; color: var(--gold); }
+  .badge { padding: 2px 8px; font-size: 11px; font-weight: bold; color: #0b0e1a; }
+  .badge.BUY { background: var(--buy); } .badge.SELL { background: var(--sell); }
+  .badge.HOLD { background: var(--hold); }
+  .brow .meta { color: var(--dim); font-size: 10px; margin-left: auto; }
+  #stats { padding: 2px 12px 0; font-size: 10px; color: var(--dim); line-height: 1.6; }
+  #talk {
+    flex: 1.4; overflow-y: auto; margin: 4px 12px 0; padding: 6px 8px;
+    background: var(--bg); border: 1px solid var(--line);
+    font-size: 10px; line-height: 1.55; min-height: 80px;
+  }
+  #talk .say { margin-bottom: 6px; color: var(--text); }
+  #talk .who { font-weight: bold; }
+  #talk .tk { color: var(--dim); }
+  #detail {
+    margin: 4px 12px; padding: 8px; background: var(--bg); border: 1px solid var(--line);
+    font-size: 10px; line-height: 1.5; color: var(--text); height: 96px; overflow-y: auto;
+    flex-shrink: 0;
+  }
+  #detail .who { color: var(--gold); }
+  #log { flex: 0.8; overflow-y: auto; padding: 2px 12px 10px; font-size: 10px; line-height: 1.6; color: var(--dim); min-height: 60px; }
+  #log .t { color: #3f4767; }
+  #log .stage { color: #8fb8de; } #log .decision { color: var(--gold); } #log .error { color: var(--sell); }
+  #log .alert { color: #ffe97a; font-weight: bold; }
+  .brow .live { font-size: 10px; width: 52px; text-align: right; }
+  .live.up { color: var(--buy); } .live.down { color: var(--sell); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRADINGAGENTS DESK</h1>
+  <span id="worker">worker: —</span>
+  <span id="conn">● connecting…</span>
+</header>
+<main>
+  <div id="floorwrap"><canvas id="floor" width="640" height="420"></canvas></div>
+  <aside>
+    <h2>DECISION BOARD</h2>
+    <div id="board"></div>
+    <h2>TRACK RECORD</h2>
+    <div id="stats">no realized outcomes yet</div>
+    <h2>FLOOR TALK</h2>
+    <div id="talk"></div>
+    <h2>AGENT OUTPUT <span style="letter-spacing:0">(click a character)</span></h2>
+    <div id="detail"><span class="who">—</span><br>Click an agent on the floor to read their full latest report.</div>
+    <h2>LOG</h2>
+    <div id="log"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+/* ---------------------------------------------------------------- sprites */
+const S = 2;                       // pixel scale inside the 640x420 canvas
+const BODY = [                     // 12 x 15 template; letters -> palette roles
+  "....hhhh....",
+  "...hhhhhh...",
+  "...ssssss...",
+  "...sessse...",
+  "...ssssss...",
+  "....ssss....",
+  "...bbtbbb...",
+  "..bbbttbbb..",
+  ".sbbbtbbbbs.",
+  ".sbbbbbbbbs.",
+  "..bbbbbbbb..",
+  "...bbbbbb...",
+  "...ll..ll...",
+  "...ll..ll...",
+  "..ff....ff..",
+];
+const TYPING = { 8: ".sbbbtbbbbs.", 9: "..bbbbbbbb.." }; // arms tucked over keys
+const AGENTS = [
+  { id:"technical",         name:"TECH",  x: 56,  y: 66, suit:"#4cc9f0", hair:"#22577a" },
+  { id:"fundamental",       name:"FUND",  x:196,  y: 66, suit:"#57cc99", hair:"#2d6a4f" },
+  { id:"news",              name:"MACRO", x:336,  y: 66, suit:"#ffd166", hair:"#9c6644" },
+  { id:"sentiment",         name:"MOOD",  x:476,  y: 66, suit:"#ff70a6", hair:"#7d3c98" },
+  { id:"bull",              name:"BULL",  x: 76,  y:186, suit:"#2dc653", hair:"#1b4332", horns:true },
+  { id:"bear",              name:"BEAR",  x:216,  y:186, suit:"#e5383b", hair:"#4a2419", ears:true },
+  { id:"manager",           name:"RES MGR", x:146, y:256, suit:"#9d4edd", hair:"#3c096c" },
+  { id:"trader",            name:"TRADER",  x:430, y:196, suit:"#4895ef", hair:"#14213d", phone:true },
+  { id:"risk_aggressive",   name:"RISK+",  x: 56, y:336, suit:"#ff8500", hair:"#6a3400" },
+  { id:"risk_neutral",      name:"RISK=",  x:176, y:336, suit:"#adb5bd", hair:"#495057" },
+  { id:"risk_conservative", name:"RISK-",  x:296, y:336, suit:"#6c9a8b", hair:"#354f52" },
+  { id:"pm",                name:"PM",     x:508, y:326, suit:"#22223b", hair:"#c9ada7", tie:"#ffd166" },
+];
+const ZONES = [
+  { label:"ANALYST ROW", x:20,  y:28,  w:560, h:86 },
+  { label:"RESEARCH PIT",x:20,  y:150, w:300, h:150 },
+  { label:"TRADING",     x:360, y:150, w:220, h:96 },
+  { label:"RISK DESK",   x:20,  y:306, w:340, h:86 },
+  { label:"PM OFFICE",   x:440, y:290, w:180, h:104 },
+];
+// what each agent is "doing" while their LLM call runs
+const TASKS = {
+  technical: "crunching the charts on", fundamental: "reading the filings on",
+  news: "scanning macro data for", sentiment: "gauging the mood around",
+  bull: "arguing the bull case on", bear: "arguing the bear case on",
+  manager: "weighing the debate on", trader: "drafting a trade plan for",
+  risk_aggressive: "pushing to size up", risk_neutral: "balancing the risk view on",
+  risk_conservative: "urging caution on", pm: "making the final call on",
+};
+const state = {};   // id -> {mode, until, detail, say, sayT0, sayUntil, task, ticker}
+AGENTS.forEach(a => state[a.id] = { mode:"idle", detail:"", until:0, say:"", sayT0:0, sayUntil:0, task:"", ticker:"" });
+const byId = {}; AGENTS.forEach(a => byId[a.id] = a);
+let workerSleeping = false;
+let lastDoneAgent = null;          // for paper hand-off animation
+const flights = [];                // {x0,y0,x1,y1,t0,dur}
+let stamp = null;                  // {action,ticker,until} — PM's decision splash
+
+const cv = document.getElementById("floor"), cx = cv.getContext("2d");
+cx.imageSmoothingEnabled = false;
+
+function px(x, y, w, h, c) { cx.fillStyle = c; cx.fillRect(x, y, w, h); }
+
+/* --------------------------------------------------------- text utilities */
+function cleanWords(text, max) {
+  let t = (text || "").replace(/\[[A-Z+=\- ]+ ?r?\d*\]/g, " ")     // [BULL r1] tags
+    .replace(/[*_#>`]/g, "").replace(/\s+/g, " ").trim();
+  if (t.length > max) {
+    t = t.slice(0, max);
+    const cut = t.lastIndexOf(" ");
+    if (cut > max * 0.6) t = t.slice(0, cut);
+    t += "…";
+  }
+  return t;
+}
+function wrapText(t, maxChars) {
+  const words = t.split(" "), lines = []; let line = "";
+  for (const w of words) {
+    if ((line + " " + w).trim().length > maxChars && line) { lines.push(line); line = w; }
+    else line = (line + " " + w).trim();
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 4);
+}
+
+/* ------------------------------------------------------------ floor + desks */
+function drawFloor() {
+  px(0, 0, cv.width, cv.height, "#10142a");
+  for (let ty = 20; ty < cv.height; ty += 20)
+    for (let tx = 0; tx < cv.width; tx += 20)
+      if ((tx + ty) % 40 === 0) px(tx, ty, 20, 20, "#121631");
+  cx.strokeStyle = "#232945"; cx.lineWidth = 2;
+  cx.font = "9px Menlo, monospace";
+  for (const z of ZONES) {
+    cx.strokeRect(z.x, z.y, z.w, z.h);
+    cx.fillStyle = "#3f4767"; cx.fillText(z.label, z.x + 6, z.y + 12);
+  }
+}
+
+function drawTape(frame) {
+  px(0, 0, cv.width, 16, "#080b16");
+  px(0, 15, cv.width, 1, "#232945");
+  const parts = [];
+  Object.values(board).sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(d => {
+    const q = quotes[d.ticker];
+    parts.push({ t: d.ticker + " ", c: "#ffd166" });
+    if (q != null) parts.push({ t: (q >= 0 ? "+" : "") + q.toFixed(1) + "% ", c: q >= 0 ? "#2dc653" : "#e5383b" });
+    parts.push({ t: d.action + "  ▪  ", c: "#7a82a6" });
+  });
+  if (!parts.length) parts.push({ t: "TRADINGAGENTS DESK  ▪  waiting for first decision  ▪  ", c: "#3f4767" });
+  cx.font = "bold 10px Menlo, monospace";
+  const total = parts.reduce((s, p) => s + cx.measureText(p.t).width, 0);
+  let x = cv.width - ((frame * 1.5) % (total + cv.width));
+  for (let rep = 0; rep < 2; rep++) {
+    let rx = x + rep * total;
+    for (const p of parts) {
+      if (rx > -80 && rx < cv.width) { cx.fillStyle = p.c; cx.fillText(p.t, rx, 11); }
+      rx += cx.measureText(p.t).width;
+    }
+  }
+}
+
+function drawDesk(a, working, af) {
+  const dx = a.x - 6, dy = a.y + 30;
+  px(dx - 2, dy, 40, 5, "#3a3f5c");             // desktop
+  px(dx + 2, dy + 5, 4, 9, "#2a2f4a"); px(dx + 30, dy + 5, 4, 9, "#2a2f4a");
+  const on = working && af % 2 === 0;
+  px(dx + 8, dy - 12, 16, 11, "#1a1f38");        // monitor
+  px(dx + 9, dy - 11, 14, 9, on ? "#66f2c3" : "#0f2233");
+  if (working) {                                 // squiggle "chart" on screen
+    cx.strokeStyle = "#0b3d2e"; cx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const sx = dx + 10 + i * 2, sy = dy - 6 + (((af + i) % 3) - 1) * 2;
+      i ? cx.lineTo(sx, sy) : cx.moveTo(sx, sy);
+    }
+    cx.stroke();
+  }
+  px(dx + 14, dy - 1, 4, 2, "#2a2f4a");          // stand
+  px(dx + 30, dy - 4, 5, 4, "#c95b5b");          // coffee mug
+  px(dx + 35, dy - 3, 1, 2, "#c95b5b");
+  if (!working && af % 8 < 2) px(dx + 32, dy - 7, 1, 2, "#5c677d");  // steam
+  px(dx - 1, dy - 3, 7, 3, "#e9ecef");           // papers
+  px(dx - 1, dy - 2, 7, 1, "#adb5bd");
+  if (a.phone) { px(dx + 26, dy - 10, 3, 6, "#101010"); }   // trader's phone
+}
+
+/* --------------------------------------------------------------- bubbles */
+function drawBubble(a, text, opts) {
+  const maxChars = 20;
+  const lines = wrapText(text, maxChars);
+  if (!lines.length) return;
+  cx.font = "9px Menlo, monospace";
+  const w = Math.max(...lines.map(l => cx.measureText(l).width)) + 10;
+  const h = lines.length * 10 + 7;
+  let bx = a.x + 14 - w / 2, by = a.y - h - 6;
+  bx = Math.max(2, Math.min(cv.width - w - 2, bx));
+  by = Math.max(18, by);
+  cx.fillStyle = opts.dim ? "#c8cdd9" : "#e9ecef";
+  cx.fillRect(bx, by, w, h);
+  px(a.x + 12, by + h, 4, 3, opts.dim ? "#c8cdd9" : "#e9ecef");  // tail
+  cx.strokeStyle = opts.border || "#3a3f5c"; cx.lineWidth = 1;
+  cx.strokeRect(bx + 0.5, by + 0.5, w - 1, h - 1);
+  cx.fillStyle = opts.dim ? "#3a4157" : "#0b0e1a";
+  lines.forEach((l, i) => cx.fillText(l, bx + 5, by + 10 + i * 10));
+}
+
+function drawAgent(a, frame, af) {
+  const st = state[a.id];
+  const working = st.mode === "working";
+  const bob = (!working && af % 2 === 0) ? 1 : 0;
+  drawDesk(a, working, af);
+  const pal = { h: a.hair, s: "#e8b98a", b: a.suit, t: a.tie || a.suit,
+                e: (af % 7 === 0) ? "#e8b98a" : "#101010",
+                l: "#22223b", f: "#101010" };
+  const ox = a.x, oy = a.y + bob;
+  BODY.forEach((row, r) => {
+    const line = (working && TYPING[r]) ? TYPING[r] : row;
+    for (let c = 0; c < line.length; c++) {
+      const ch = line[c]; if (ch === ".") continue;
+      px(ox + c * S, oy + r * S, S, S, pal[ch] || a.suit);
+    }
+  });
+  if (a.horns) { px(ox + 2*S, oy - S, S, S, "#f4d58d"); px(ox + 9*S, oy - S, S, S, "#f4d58d"); }
+  if (a.ears)  { px(ox + 2*S, oy, S, S, a.hair); px(ox + 9*S, oy, S, S, a.hair); }
+  const now = Date.now();
+  if (st.say && now < st.sayUntil) {
+    // spoken words, typewriter reveal
+    const chars = Math.floor((now - st.sayT0) / 28);
+    drawBubble(a, st.say.slice(0, Math.max(1, chars)), { border: a.suit });
+  } else if (working) {
+    const dots = ".".repeat(1 + (af % 3));
+    drawBubble(a, (st.task || "working") + " " + st.ticker + dots, { dim: true });
+  } else if (st.mode === "done" && now < st.until) {
+    cx.fillStyle = "#2dc653"; cx.font = "bold 10px Menlo"; cx.fillText("✓", ox + 28, oy - 2);
+  } else if (workerSleeping && af % 4 < 2) {
+    cx.fillStyle = "#5c677d"; cx.font = "9px Menlo"; cx.fillText("z", ox + 26, oy - 2 - (af % 2) * 2);
+  }
+  cx.fillStyle = "#7a82a6"; cx.font = "8px Menlo";
+  cx.fillText(a.name, ox - (a.name.length * 2 - 12), oy + 34 + 10);
+}
+
+/* --------------------------------------------------- flights, sparks, stamp */
+function drawFlights(now) {
+  for (let i = flights.length - 1; i >= 0; i--) {
+    const f = flights[i];
+    const t = (now - f.t0) / f.dur;
+    if (t >= 1) { flights.splice(i, 1); continue; }
+    const ease = t * t * (3 - 2 * t);
+    const x = f.x0 + (f.x1 - f.x0) * ease;
+    const y = f.y0 + (f.y1 - f.y0) * ease - Math.sin(t * Math.PI) * 22;  // arc
+    px(x, y, 7, 8, "#e9ecef");                    // flying report
+    px(x, y, 7, 1, "#adb5bd");
+    px(x + 1, y + 3, 5, 1, "#8d99ae"); px(x + 1, y + 5, 5, 1, "#8d99ae");
+  }
+}
+
+function drawDebateSpark(af) {
+  const b1 = byId.bull, b2 = byId.bear;
+  if (state.bull.mode !== "working" && state.bear.mode !== "working") return;
+  const mx = (b1.x + b2.x) / 2 + 12, my = b1.y + 10;
+  cx.strokeStyle = af % 2 ? "#ffd166" : "#ffe97a"; cx.lineWidth = 2;
+  cx.beginPath();                                  // lightning zigzag
+  cx.moveTo(mx - 4, my - 8); cx.lineTo(mx + 2, my - 2);
+  cx.lineTo(mx - 2, my + 2); cx.lineTo(mx + 4, my + 8);
+  cx.stroke();
+  cx.fillStyle = "#7a82a6"; cx.font = "bold 8px Menlo";
+  cx.fillText("VS", mx - 5, my + 18);
+}
+
+function drawStamp(now) {
+  if (!stamp || now > stamp.until) { stamp = null; return; }
+  const z = ZONES[4];                              // PM office
+  const col = stamp.action === "BUY" ? "#2dc653" : stamp.action === "SELL" ? "#e5383b" : "#8d99ae";
+  const pulse = 1 + 0.06 * Math.sin((now - (stamp.until - 6000)) / 120);
+  cx.save();
+  cx.translate(z.x + z.w / 2, z.y + 34);
+  cx.scale(pulse, pulse); cx.rotate(-0.08);
+  cx.font = "bold 16px Menlo"; cx.textAlign = "center";
+  cx.strokeStyle = col; cx.lineWidth = 2;
+  const label = stamp.action + " " + stamp.ticker;
+  const w = cx.measureText(label).width + 14;
+  cx.strokeRect(-w / 2, -14, w, 22);
+  cx.fillStyle = col; cx.fillText(label, 0, 2);
+  cx.restore(); cx.textAlign = "left";
+}
+
+let frame = 0;
+function render() {
+  const af = Math.floor(frame / 3);                // slow frame for sprite anim
+  drawFloor();
+  drawTape(frame);
+  const now = Date.now();
+  for (const a of AGENTS) {
+    const st = state[a.id];
+    if (st.mode === "done" && now > st.until) st.mode = "idle";
+    drawAgent(a, frame, af);
+  }
+  drawDebateSpark(af);
+  drawFlights(now);
+  drawStamp(now);
+  frame++;
+}
+setInterval(render, 100);
+
+/* ------------------------------------------------------------- data plumbing */
+const boardEl = document.getElementById("board"), logEl = document.getElementById("log");
+const statsEl = document.getElementById("stats"), detailEl = document.getElementById("detail");
+const workerEl = document.getElementById("worker"), connEl = document.getElementById("conn");
+const talkEl = document.getElementById("talk");
+const board = {};   // ticker -> decision
+const quotes = {};  // ticker -> live change_pct
+
+function fmtTime(ts) { return new Date(ts * 1000).toTimeString().slice(0, 8); }
+
+function addLog(cls, text, ts) {
+  const div = document.createElement("div");
+  div.innerHTML = `<span class="t">${ts ? fmtTime(ts) : ""}</span> <span class="${cls}">${text}</span>`;
+  logEl.prepend(div);
+  while (logEl.childNodes.length > 80) logEl.removeChild(logEl.lastChild);
+}
+
+function addTalk(agentId, ticker, text) {
+  const a = byId[agentId]; if (!a || !text) return;
+  const div = document.createElement("div"); div.className = "say";
+  const who = document.createElement("span");
+  who.className = "who"; who.style.color = a.suit; who.textContent = a.name;
+  const tk = document.createElement("span"); tk.className = "tk";
+  tk.textContent = ticker ? ` · ${ticker} — ` : " — ";
+  div.appendChild(who); div.appendChild(tk);
+  div.appendChild(document.createTextNode("“" + cleanWords(text, 170) + "”"));
+  talkEl.prepend(div);
+  while (talkEl.childNodes.length > 60) talkEl.removeChild(talkEl.lastChild);
+}
+
+function renderBoard() {
+  boardEl.innerHTML = "";
+  Object.values(board).sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(d => {
+    const row = document.createElement("div"); row.className = "brow";
+    const q = quotes[d.ticker];
+    const live = q == null ? "" :
+      `<span class="live ${q >= 0 ? "up" : "down"}">${q >= 0 ? "+" : ""}${q.toFixed(1)}%</span>`;
+    row.innerHTML = `<span class="tkr">${d.ticker}</span>` +
+      `<span class="badge ${d.action}">${d.action}</span>` +
+      `<span>${d.conviction || ""}</span>` + live +
+      `<span class="meta">${d.verdict || ""} · w=${(d.target_weight ?? 0).toFixed(2)} · ${d.asof || ""}</span>`;
+    boardEl.appendChild(row);
+  });
+}
+
+function handle(ev, live) {
+  if (ev.type === "stage" && state[ev.agent]) {
+    const st = state[ev.agent];
+    if (ev.status === "start") {
+      st.mode = "working"; st.task = TASKS[ev.agent] || "working on";
+      st.ticker = ev.ticker || ""; st.say = ""; workerSleeping = false;
+      if (live && lastDoneAgent && lastDoneAgent !== ev.agent) {
+        const from = byId[lastDoneAgent], to = byId[ev.agent];
+        flights.push({ x0: from.x + 8, y0: from.y + 8, x1: to.x + 8, y1: to.y + 8,
+                       t0: Date.now(), dur: 1100 });
+      }
+      addLog("stage", `${ev.agent} analyzing ${ev.ticker} ${ev.asof}`, ev.ts);
+    } else {
+      if (ev.detail) {
+        st.detail = ev.detail;
+        addTalk(ev.agent, ev.ticker, ev.detail);
+      }
+      if (live && !ev.cached) {
+        st.mode = "done"; st.until = Date.now() + 2500;
+        if (ev.detail) {
+          st.say = cleanWords(ev.detail, 90);
+          st.sayT0 = Date.now(); st.sayUntil = Date.now() + 7000;
+        }
+        lastDoneAgent = ev.agent;
+      } else if (st.mode === "working") st.mode = "idle";
+    }
+  } else if (ev.type === "decision") {
+    board[ev.ticker] = ev; renderBoard();
+    if (live && !ev.cached) {
+      stamp = { action: ev.action, ticker: ev.ticker, until: Date.now() + 6000 };
+      const pm = state.pm;
+      pm.say = `${ev.action} ${ev.ticker} — I ${(ev.verdict || "decide").toLowerCase()} this. Target ${((ev.target_weight ?? 0) * 100).toFixed(0)}%.`;
+      pm.sayT0 = Date.now(); pm.sayUntil = Date.now() + 8000;
+    }
+    addLog("decision", `${ev.ticker} → ${ev.action}/${ev.conviction} (${ev.verdict}${ev.cached ? ", cached" : ""})`, ev.ts);
+  } else if (ev.type === "worker") {
+    workerSleeping = ev.status === "sleeping";
+    workerEl.textContent = "worker: " + (
+      ev.status === "sleeping" ? `sleeping (${ev.minutes} min poll)` :
+      ev.status === "watching" ? `watching market (${ev.minutes} min poll)` :
+      ev.status === "reviewing" ? `reviewing ${ev.ticker} — ${ev.detail}` :
+      ev.status.replace("_", " ") + (ev.asof ? " " + ev.asof : ""));
+    if (ev.status !== "sleeping" && ev.status !== "watching")
+      addLog("stage", `worker ${ev.status}${ev.ticker ? " " + ev.ticker : ""}`, ev.ts);
+  } else if (ev.type === "quotes") {
+    Object.assign(quotes, ev.changes || {});
+    renderBoard();
+  } else if (ev.type === "alert") {
+    addLog("alert", `⚠ ${ev.action} ${ev.ticker} (${ev.conviction}) — ${ev.trigger}`, ev.ts);
+    if (live) stamp = { action: ev.action, ticker: ev.ticker, until: Date.now() + 8000 };
+  } else if (ev.type === "error") {
+    addLog("error", `ERROR ${ev.detail}`, ev.ts);
+  }
+}
+
+cv.addEventListener("click", e => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (cv.width / r.width), y = (e.clientY - r.top) * (cv.height / r.height);
+  for (const a of AGENTS)
+    if (x >= a.x - 8 && x <= a.x + 32 && y >= a.y - 12 && y <= a.y + 44) {
+      detailEl.innerHTML = `<span class="who">${a.name}</span><br>`;
+      detailEl.appendChild(document.createTextNode(state[a.id].detail || "(no output yet this session)"));
+      return;
+    }
+});
+
+async function boot() {
+  try {
+    const st = await (await fetch("/state")).json();
+    (st.board || []).forEach(d => { board[d.ticker] = d; });
+    renderBoard();
+    (st.events || []).forEach(ev => handle(ev, false));   // history: no animations
+    const m = st.memory || {};
+    if (m.decided)
+      statsEl.textContent =
+        `${m.decided} decisions with realized outcomes · ` +
+        `${m.positive_alpha_share != null ? (m.positive_alpha_share * 100).toFixed(0) + "% beat SPY" : ""} · ` +
+        `mean alpha ${m.mean_alpha_bps ?? "—"} bps`;
+  } catch (e) { addLog("error", "state fetch failed: " + e); }
+
+  const sse = new EventSource("/events");
+  sse.onopen = () => { connEl.textContent = "● live"; connEl.style.color = "#2dc653"; };
+  sse.onerror = () => { connEl.textContent = "● reconnecting…"; connEl.style.color = "#e5383b"; };
+  sse.onmessage = m => handle(JSON.parse(m.data), true);
+}
+boot();
+</script>
+</body>
+</html>

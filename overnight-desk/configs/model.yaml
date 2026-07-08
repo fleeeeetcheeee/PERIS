@@ -1,0 +1,27 @@
+# Training config — same schema as baseline.yaml; training reads cv + model sections.
+universe_file: data/reference/universe.csv
+start: 2018-01-02
+end: null
+benchmark: SPY
+
+cv:
+  label_horizon_days: 5
+  purge_days: 5
+  embargo_days: 2
+  min_train_days: 504
+  test_window_days: 63
+
+model:
+  seed: 42
+  objective: lambdarank  # promoted 2026-07-06, wave-1 experiment
+  num_boost_round: 400
+  early_stopping_rounds: 50
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    min_data_in_leaf: 100
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l2: 1.0
+    verbosity: -1

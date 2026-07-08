@@ -1,0 +1,17 @@
+{
+  "n_days": 50,
+  "ann_return_net": -0.0496887568,
+  "ann_vol": 0.1171735354,
+  "sharpe_net": -0.3774650833,
+  "deflated_sharpe": 0.4338537364,
+  "hit_rate": 0.46,
+  "max_drawdown": -0.0561446016,
+  "avg_daily_turnover": 0.5048751172,
+  "benchmark_ann_return": -0.0322818607,
+  "excess_ann_return_vs_spy": -0.0174068961,
+  "underperforms_spy": true,
+  "hit_rate_ci95": [
+    0.3296965219,
+    0.596011286
+  ]
+}

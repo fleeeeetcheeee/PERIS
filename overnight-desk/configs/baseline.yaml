@@ -1,0 +1,59 @@
+# Baseline backtest / pipeline config. Validated by core.config.Config.
+universe_file: data/reference/universe.csv
+start: 2018-01-02
+end: null
+benchmark: SPY
+# 7 (turnover wave) + 6 (wave-1 model) + 4 (wave-2 construction/gates, none promoted)
+# + 4 (wave-3 meta-labeling sizing, none promoted) + 3 (wave-4 features, none promoted)
+# + 3 (wave-5 universe/labels, none promoted) + 1 (no-mac robustness probe)
+# + 5 (wave-6 fundamentals/PEAD: 3 v1 + 2 v2 after the earnings-event fallback fix)
+selection_trials: 33
+
+costs:
+  stock_bps_per_side: 7.5
+  etf_bps_per_side: 3.0
+
+portfolio:
+  top_k: 12
+  max_weight: 0.10
+  vol_target_annual: 0.12
+  vol_lookback_days: 63
+  min_trade_weight: 0.01
+  # Promoted 2026-07-06 from the turnover experiment (artifacts/experiment_turnover.json):
+  # smooth3+cadence5 vs daily incumbent on identical OOS predictions, net of costs:
+  # ann return -3.0% -> +5.1%, Sharpe -0.29 -> +0.52, turnover 30.5%/d -> 8.4%/d.
+  # Deflated Sharpe 0.47 (n_trials=7) — not statistically significant; still below SPY.
+  rebalance_every: 5
+  score_smoothing_halflife: 3
+  capital: 10000.0
+
+gates:
+  earnings_exclusion_sessions: 2
+  vix_term_structure: true
+  drawdown_halt_pct: 0.10
+
+cv:
+  label_horizon_days: 5
+  purge_days: 5
+  embargo_days: 2
+  min_train_days: 504
+  test_window_days: 63
+
+model:
+  seed: 42
+  # Promoted 2026-07-06 (wave-1 experiment): lambdarank + fracdiff + spillover
+  # features vs regression incumbent on identical OOS predictions: net +5.1% -> +8.6%/yr,
+  # Sharpe 0.52 -> 0.79, dSR 0.617 (n_trials=13). See Research/ entry for the
+  # IC-invisibility finding behind this promotion.
+  objective: lambdarank
+  num_boost_round: 400
+  early_stopping_rounds: 50
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    min_data_in_leaf: 100
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l2: 1.0
+    verbosity: -1

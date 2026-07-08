@@ -1,0 +1,50 @@
+# Wave-5 experiment config: full point-in-time S&P 500 universe (~680 stocks that
+# held membership at any point in the window, PIT-masked) instead of the 71-name
+# snapshot. Everything else identical to baseline.
+universe_file: data/reference/universe_sp500.csv
+start: 2018-01-02
+end: null
+benchmark: SPY
+# 24 (waves 0-4) + 1 (this universe variant)
+selection_trials: 25
+
+costs:
+  stock_bps_per_side: 7.5
+  etf_bps_per_side: 3.0
+
+portfolio:
+  top_k: 12
+  max_weight: 0.10
+  vol_target_annual: 0.12
+  vol_lookback_days: 63
+  min_trade_weight: 0.01
+  rebalance_every: 5
+  score_smoothing_halflife: 3
+  capital: 10000.0
+
+gates:
+  earnings_exclusion_sessions: 2
+  vix_term_structure: true
+  drawdown_halt_pct: 0.10
+
+cv:
+  label_horizon_days: 5
+  purge_days: 5
+  embargo_days: 2
+  min_train_days: 504
+  test_window_days: 63
+
+model:
+  seed: 42
+  objective: lambdarank
+  num_boost_round: 400
+  early_stopping_rounds: 50
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    min_data_in_leaf: 100
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l2: 1.0
+    verbosity: -1

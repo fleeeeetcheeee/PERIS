@@ -1,0 +1,12 @@
+# Parquet lake and ledger are local-only
+data/raw/
+data/curated/
+data/ledger.db
+artifacts/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+briefings/
+.env
